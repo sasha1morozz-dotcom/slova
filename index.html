@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Слова">
+<meta name="theme-color" content="#0d6b5e">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Слова Эббингауза</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap">
+<style>
+/* Phone-first layout: compact top bar with save status, full-width language switch, one tall flashcard with action buttons at its bottom (thumb reach), fixed bottom tab bar. */
+:root{
+  color-scheme:light;
+  --bg:#f1f5f3;--surface:#ffffff;--surface2:#e6eeeb;--fg:#14201c;--muted:#566863;--line:#d3ded9;
+  --accent:#0d6b5e;--accent-fg:#ffffff;--accent-soft:#d2eae4;--warn:#a93e1c;--warn-soft:#f7e0d7;
+  --g0:var(--line);--g1:color-mix(in srgb,var(--accent) 35%,var(--surface2));--g2:color-mix(in srgb,var(--accent) 65%,var(--surface2));--g3:var(--accent);
+  --f-body:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-disp:"Unbounded","Onest",system-ui,sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme:dark;
+    --bg:#0e1513;--surface:#16201d;--surface2:#202b27;--fg:#e5eeeb;--muted:#92a49e;--line:#2b3a35;
+    --accent:#4fd1b8;--accent-fg:#06211c;--accent-soft:#17352e;--warn:#f08a65;--warn-soft:#3b221a;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--fg);font:16px/1.5 var(--f-body)}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:720px;margin:0 auto;padding-inline:16px;padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;min-height:40px}
+.logo{font:700 1.2rem/1 var(--f-disp);margin:0;letter-spacing:-.01em}
+.sync{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;color:var(--muted)}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.errtxt{color:var(--warn);font-weight:600}
+.banner{background:var(--accent-soft);border-radius:var(--r);padding:10px 14px;margin-bottom:12px;font-size:.9rem}
+.seg{display:inline-flex;background:var(--surface2);border-radius:12px;padding:3px;gap:2px;max-width:100%}
+.seg button{border:0;background:transparent;min-height:40px;padding:6px 14px;border-radius:9px;font-weight:500;color:var(--muted);display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.seg button[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgb(0 0 0 / .14)}
+.seg.lang{display:flex;margin-bottom:14px}
+.seg.lang button{flex:1;min-height:44px;font-size:1rem}
+.badge{background:var(--accent);color:var(--accent-fg);border-radius:99px;font-size:.72rem;padding:0 7px;min-width:1.5em;text-align:center;line-height:1.55;font-variant-numeric:tabular-nums}
+.nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(100%,720px);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--surface);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));z-index:5}
+.nav button{border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;font-size:.72rem;font-weight:500;border-radius:10px}
+.nav button[aria-selected="true"]{color:var(--accent)}
+.nav svg{display:block}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;min-width:0}
+.tile small{display:block;color:var(--muted);font-size:.76rem}
+.tile b{display:block;font:500 1.4rem/1.35 var(--f-disp);font-variant-numeric:tabular-nums}
+.card,.panel{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;min-width:0}
+.card{min-height:min(62vh,440px);display:flex;flex-direction:column}
+.card.tap{cursor:pointer}
+.card-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:16px;min-height:40px}
+.tag{font-size:.78rem;color:var(--muted);letter-spacing:.04em}
+.prompt{font-size:clamp(2.2rem,11vw,3.4rem);font-weight:600;line-height:1.12;overflow-wrap:anywhere;text-wrap:balance}
+.answer{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);font-size:clamp(1.5rem,7vw,2.1rem);color:var(--accent);font-weight:500;line-height:1.25;overflow-wrap:anywhere}
+.bottom{margin-top:auto;padding-top:20px}
+.dots{display:inline-flex;gap:3px;align-items:center}
+.dots i{width:6px;height:6px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--accent)}
+.btn{border:1px solid var(--line);background:var(--surface2);border-radius:12px;min-height:44px;padding:9px 16px;font-weight:500;display:inline-flex;align-items:center;gap:8px;justify-content:center}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.warn{background:var(--warn-soft);border-color:var(--warn-soft);color:var(--warn)}
+.btn.wide{width:100%;min-height:58px;font-size:1.05rem;font-weight:600}
+.btn.sm{min-height:38px;padding:4px 14px;font-size:.9rem}
+.btn[disabled]{opacity:.5;cursor:default}
+.ghost{border:0;background:transparent;color:var(--muted);min-height:40px;padding:6px 10px;border-radius:10px;font-size:.9rem}
+.ghost:active{background:var(--surface2)}
+kbd{font:500 .72rem var(--f-body);border:1px solid currentColor;border-radius:5px;padding:0 5px;opacity:.7}
+@media (hover:none){kbd{display:none}}
+.grades{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.grade{border:1px solid var(--line);background:var(--surface2);border-radius:14px;min-height:70px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-weight:600;font-size:1rem}
+.grade small{font-weight:400;opacity:.78;font-size:.78rem;font-variant-numeric:tabular-nums}
+.grade.again{background:var(--warn-soft);border-color:var(--warn-soft);color:var(--warn)}
+.grade.good{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.done{min-height:0}
+.done h2,.panel h2{font:600 1.15rem/1.3 var(--f-body);margin:0 0 6px}
+.muted{color:var(--muted)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.dist{display:flex;height:10px;border-radius:99px;overflow:hidden;background:var(--surface2);gap:2px}
+.dist span{display:block;min-width:4px}
+.g0{background:var(--g0)}.g1{background:var(--g1)}.g2{background:var(--g2)}.g3{background:var(--g3)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;list-style:none;padding:0;margin:10px 0 14px;font-size:.86rem;color:var(--muted)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.legend b{color:var(--fg);font-variant-numeric:tabular-nums}
+input[type="search"],textarea{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:16px;min-height:48px}
+textarea{resize:vertical;min-height:170px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin-top:12px}
+.wlist{list-style:none;margin:12px 0 0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;align-items:center;padding:10px 6px 10px 14px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.rw{min-width:0;display:flex;flex-direction:column}
+.rw b{font-size:1.05rem;overflow-wrap:anywhere}
+.rw span{color:var(--muted);overflow-wrap:anywhere}
+.meta{display:flex;align-items:center;gap:8px;margin-top:3px;color:var(--muted);font-size:.78rem;font-style:normal}
+.x{border:0;background:transparent;color:var(--muted);min-width:44px;min-height:44px;padding:6px 10px;border-radius:10px}
+.x:active{background:var(--surface2)}
+.x.warn{background:var(--warn-soft);color:var(--warn);font-size:.85rem;font-weight:600}
+.none,.more{padding:16px;text-align:center;color:var(--muted)}
+.notice{background:var(--accent-soft);border-radius:var(--r);padding:12px 14px;margin-top:14px}
+.notice.warn{background:var(--warn-soft);color:var(--warn)}
+.set-row{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:16px 0;border-top:1px solid var(--line)}
+.set-row:first-of-type{border-top:0;padding-top:6px}
+.set-row p{margin:0}
+.set-row .actions{margin-top:0}
+.stepper{display:inline-flex;align-items:center;gap:6px}
+.stepper button{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);font-size:1.2rem}
+.stepper output{min-width:2.6em;text-align:center;font:500 1.15rem var(--f-disp);font-variant-numeric:tabular-nums}
+.steps{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:10px 0 0}
+.steps li{background:var(--surface2);border-radius:8px;padding:3px 9px;font-size:.84rem;font-variant-numeric:tabular-nums}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:.92rem;max-width:calc(100% - 32px);z-index:10}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:no-preference){
+  .grade,.btn,.seg button,.nav button{transition:transform .08s}
+  .grade:active,.btn:active{transform:scale(.98)}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1 class="logo">Слова</h1>
+    <div class="sync" id="sync"></div>
+  </header>
+  <div class="seg lang" id="langSeg" role="tablist" aria-label="Язык"></div>
+  <div class="banner" id="banner" hidden></div>
+  <main id="view"><p class="muted">Загружаю…</p></main>
+</div>
+<nav class="nav" id="tabs" role="tablist" aria-label="Разделы"></nav>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+(function(){
+"use strict";
+
+var MIN=60000, HOUR=3600000, DAY=86400000;
+/* Интервалы повторения по кривой забывания: 20 мин, 1, 2, 4, 7, 14, 30, 60, 120 дней */
+var STEPS=[20*MIN,1*DAY,2*DAY,4*DAY,7*DAY,14*DAY,30*DAY,60*DAY,120*DAY];
+var LANGS={
+  es:{name:"Испанский",tts:"es-ES",ph:"gato кот\ncasa дом\npor favor - пожалуйста"},
+  en:{name:"Английский",tts:"en-US",ph:"cat кот\nhouse дом\nthank you - спасибо"}
+};
+var SV='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+var TABS=[
+  ["learn","Учить",SV+'<rect x="3" y="7" width="14" height="13" rx="2.5"/><path d="M7 7V6a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-1"/></svg>'],
+  ["words","Слова",SV+'<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>'],
+  ["add","Добавить",SV+'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>'],
+  ["set","Ещё",SV+'<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>']
+];
+
+var state={
+  cards:{es:{},en:{}},
+  meta:{limit:15,dir:"fwd",days:{}},
+  saveErr:false,restore:null,rtext:"",
+  lang:"es",tab:"learn",cur:null,revealed:false,ahead:false,
+  search:"",showAll:false,addText:"",addResult:null,confirmWipe:false,confirmDel:null,pend:false
+};
+
+function $(id){return document.getElementById(id);}
+try{var sl=localStorage.getItem("wd_lang"); if(sl&&LANGS[sl]) state.lang=sl;}catch(e){}
+
+/* ---------- helpers ---------- */
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function norm(w){return String(w).trim().toLowerCase().normalize("NFC");}
+function plural(n,a,b,c){var m=n%100,k=n%10;if(m>10&&m<20)return c;if(k===1)return a;if(k>=2&&k<=4)return b;return c;}
+function today(){var d=new Date(),p=function(n){return (n<10?"0":"")+n;};return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());}
+function fmtIv(ms){
+  var m=Math.round(ms/MIN);
+  if(m<1)return "1 мин";
+  if(m<60)return m+" мин";
+  var h=Math.round(ms/HOUR);
+  if(h<24)return h+" ч";
+  var d=Math.round(ms/DAY);
+  if(d<60)return d+" дн";
+  return Math.round(d/30)+" мес";
+}
+function cardsOf(l){var cs=state.cards[l||state.lang];return Object.keys(cs).map(function(k){return cs[k];});}
+function dayState(){
+  var l=state.lang,t=today(),d=state.meta.days[l];
+  if(!d||d.d!==t){d={d:t,n:0,r:0,b:0};state.meta.days[l]=d;}
+  return d;
+}
+function toast(msg){
+  var el=$("toast");el.textContent=msg;el.hidden=false;
+  clearTimeout(toast.t);toast.t=setTimeout(function(){el.hidden=true;},3200);
+}
+
+/* ---------- data: хранится в памяти телефона (localStorage) ---------- */
+var KEY="wd3";
+function applyData(o){
+  if(!o)return;
+  if(o.meta){
+    if(typeof o.meta.limit==="number")state.meta.limit=o.meta.limit;
+    if(o.meta.dir==="fwd"||o.meta.dir==="rev")state.meta.dir=o.meta.dir;
+    if(o.meta.days&&typeof o.meta.days==="object")state.meta.days=o.meta.days;
+    if(typeof o.meta.bk==="number")state.meta.bk=o.meta.bk;
+  }
+  ["es","en"].forEach(function(l){
+    if(!Array.isArray(o[l]))return;
+    var cs={};
+    o[l].forEach(function(a,i){
+      if(!Array.isArray(a)||!a[0])return;
+      cs[norm(a[0])]={w:String(a[0]),t:String(a[1]),s:typeof a[2]==="number"?a[2]:-1,d:+a[3]||0,l:+a[4]||0,c:+a[5]||i};
+    });
+    state.cards[l]=cs;
+  });
+}
+function snapshot(){
+  var o={v:1,meta:{limit:state.meta.limit,dir:state.meta.dir,days:state.meta.days,bk:state.meta.bk||0}};
+  ["es","en"].forEach(function(l){
+    o[l]=cardsOf(l).sort(function(a,b){return a.c-b.c;}).map(function(c){return [c.w,c.t,c.s,c.d,c.l,c.c];});
+  });
+  return o;
+}
+var persistTimer=null;
+function persist(){
+  clearTimeout(persistTimer);
+  try{localStorage.setItem(KEY,JSON.stringify(snapshot()));state.saveErr=false;}
+  catch(e){state.saveErr=true;}
+  renderStatus();
+}
+function touch(){
+  clearTimeout(persistTimer);
+  persistTimer=setTimeout(persist,250);
+}
+document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState==="hidden")persist();
+});
+window.addEventListener("pagehide",persist);
+
+/* ---------- backup ---------- */
+function backupText(){var o=snapshot();o.app="slova";return JSON.stringify(o);}
+function markBackup(){state.meta.bk=Date.now();persist();}
+function parseBackup(txt){
+  var o=JSON.parse(txt);
+  if(!o||o.app!=="slova")throw new Error("bad");
+  return {obj:o,es:Array.isArray(o.es)?o.es.length:0,en:Array.isArray(o.en)?o.en.length:0};
+}
+function doRestore(){
+  var r=state.restore;if(!r)return;
+  applyData(r.obj);
+  state.restore=null;state.rtext="";state.cur=null;state.revealed=false;
+  persist();render(true);toast("Копия восстановлена");
+}
+function deliver(name,mime,text,onDone){
+  var blob=new Blob([text],{type:mime}),file=null;
+  try{file=new File([blob],name,{type:mime});}catch(e){}
+  function download(){
+    try{
+      var url=URL.createObjectURL(blob),a=document.createElement("a");
+      a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(function(){URL.revokeObjectURL(url);},5000);
+      if(onDone)onDone();
+    }catch(e){toast("Не удалось сохранить файл");}
+  }
+  if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
+    navigator.share({files:[file]}).then(function(){if(onDone)onDone();}).catch(function(e){
+      if(!e||e.name!=="AbortError")download();
+    });
+    return;
+  }
+  download();
+}
+function copyText(text,done){
+  function fb(){
+    try{
+      var ta=document.createElement("textarea");
+      ta.value=text;ta.setAttribute("readonly","");ta.style.cssText="position:fixed;opacity:0;top:0";
+      document.body.appendChild(ta);ta.select();ta.setSelectionRange(0,text.length);
+      var ok=document.execCommand("copy");ta.remove();
+      if(ok)done();else toast("Не удалось скопировать");
+    }catch(e){toast("Не удалось скопировать");}
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(done,fb);else fb();
+}
+
+/* ---------- scheduling ---------- */
+function outcome(c,g){
+  var s0=Math.max(c.s,0);
+  if(g==="again")return {s:0,ms:MIN};
+  if(g==="hard")return {s:s0,ms:s0===0?10*MIN:STEPS[s0-1]};
+  var s=Math.min(s0+1,STEPS.length);
+  return {s:s,ms:STEPS[s-1]};
+}
+function summary(){
+  var now=Date.now(),arr=cardsOf(),due=0,fresh=0,next=Infinity,g=[0,0,0,0];
+  arr.forEach(function(c){
+    if(c.s<0){fresh++;g[0]++;}
+    else{
+      if(c.d<=now)due++;else if(c.d<next)next=c.d;
+      g[c.s<=3?1:(c.s<=6?2:3)]++;
+    }
+  });
+  var day=dayState();
+  var allow=state.meta.limit+(day.b||0);
+  var left=Math.max(0,allow-day.n);
+  return {total:arr.length,due:due,fresh:fresh,left:left,allow:allow,next:next===Infinity?null:next,groups:g,day:day};
+}
+function pick(){
+  var now=Date.now(),cs=state.cards[state.lang];
+  if(state.cur){
+    var cc=cs[state.cur.id],k=state.cur.kind;
+    if(cc&&((k==="new"&&cc.s<0)||(k==="review"&&cc.s>=0&&cc.d<=now)||(k==="ahead"&&cc.s>=0)))return cc;
+    state.cur=null;state.revealed=false;
+  }
+  var arr=cardsOf(),kind=null,c=null;
+  var due=arr.filter(function(x){return x.s>=0&&x.d<=now;}).sort(function(a,b){return a.d-b.d;});
+  if(due.length){c=due[0];kind="review";}
+  else{
+    var sm=summary();
+    if(sm.left>0){
+      var nw=arr.filter(function(x){return x.s<0;}).sort(function(a,b){return a.c-b.c;});
+      if(nw.length){c=nw[0];kind="new";}
+    }
+    if(!c&&state.ahead){
+      var fut=arr.filter(function(x){return x.s>=0;}).sort(function(a,b){return a.d-b.d;});
+      if(fut.length){c=fut[0];kind="ahead";}
+    }
+  }
+  if(!c)return null;
+  state.cur={id:norm(c.w),kind:kind};
+  return c;
+}
+function grade(g){
+  var c=pick();if(!c)return;
+  var o=outcome(c,g),wasNew=c.s<0,day=dayState();
+  c.s=o.s;c.d=Date.now()+o.ms;
+  if(g==="again")c.l=(c.l||0)+1;
+  day.r=(day.r||0)+1;
+  if(wasNew)day.n=(day.n||0)+1;
+  touch(1);
+  state.cur=null;state.revealed=false;
+  render(true);
+}
+
+/* ---------- import ---------- */
+function splitLine(line){
+  var seps=[/\t+/,/\s+[-–—=]+\s+/,/\s*[;|]\s*/];
+  for(var i=0;i<seps.length;i++){
+    var m=seps[i].exec(line);
+    if(m){
+      var w=line.slice(0,m.index).trim(),t=line.slice(m.index+m[0].length).trim();
+      if(w&&t)return [w,t];
+    }
+  }
+  var tok=line.split(/\s+/);
+  if(tok.length<2)return null;
+  var ci=-1;
+  for(var j=1;j<tok.length;j++){if(/[Ѐ-ӿ]/.test(tok[j])){ci=j;break;}}
+  if(ci<1)ci=1;
+  return [tok.slice(0,ci).join(" "),tok.slice(ci).join(" ")];
+}
+function parseText(text){
+  var pairs=[],bad=[];
+  String(text).replace(/^﻿/,"").split(/\r?\n/).forEach(function(raw){
+    var line=raw.trim();
+    if(!line)return;
+    var p=splitLine(line);
+    if(p)pairs.push(p);else bad.push(line);
+  });
+  return {pairs:pairs,bad:bad};
+}
+function doImport(){
+  var lang=state.lang,cs=state.cards[lang],r=parseText(state.addText);
+  if(!r.pairs.length)return;
+  var base=Date.now(),seen={},added=0,dups=0;
+  r.pairs.forEach(function(p,i){
+    var id=norm(p[0]);
+    if(cs[id]||seen[id]){dups++;return;}
+    seen[id]=1;
+    cs[id]={w:p[0],t:p[1],s:-1,d:0,l:0,c:base+i};
+    added++;
+  });
+  if(added)touch(added);
+  state.addText="";
+  state.addResult={added:added,dups:dups,bad:r.bad.length};
+  state.cur=null;
+  render(true);
+}
+
+/* ---------- views ---------- */
+function emptyHtml(){
+  return '<section class="panel"><h2>Пока нет слов ('+esc(LANGS[state.lang].name.toLowerCase())+')</h2>'+
+    '<p class="muted">Вставьте список или выберите txt-файл: в каждой строке слово и перевод. Приложение само раскидает слова по дням и вернёт их по кривой Эббингауза.</p>'+
+    '<p class="muted">Слова и прогресс сохраняются на этом телефоне автоматически после каждого ответа.</p>'+
+    '<div class="actions"><button class="btn primary" data-act="tab" data-v="add">Добавить слова</button></div></section>';
+}
+function tile(label,val){return '<div class="tile"><small>'+label+'</small><b>'+val+'</b></div>';}
+function dotsHtml(s){
+  var h='<span class="dots" aria-hidden="true">';
+  for(var i=0;i<STEPS.length;i++)h+='<i'+(i<s?' class="on"':'')+'></i>';
+  return h+'</span>';
+}
+function viewLearn(){
+  var sm=summary();
+  if(!sm.total)return emptyHtml();
+  var tiles='<div class="tiles">'+tile("Повторить",sm.due)+tile("Новые",sm.day.n+"/"+sm.allow)+tile("Всего",sm.total)+'</div>';
+  var c=pick();
+  if(!c)return tiles+doneHtml(sm);
+  var fwd=state.meta.dir!=="rev";
+  var prompt=fwd?c.w:c.t,answer=fwd?c.t:c.w;
+  var pl=fwd?state.lang:"ru",al=fwd?"ru":state.lang;
+  var kind=state.cur.kind;
+  var tag;
+  if(c.s<0)tag="Новое слово";
+  else{
+    tag=(kind==="ahead"?"Досрочно":"Повторение")+(c.s===0?" · заново":" · этап "+c.s+" из "+STEPS.length);
+  }
+  var h='<section class="card'+(state.revealed?'':' tap')+'"'+(state.revealed?'':' data-act="reveal"')+'><div class="card-top"><span class="tag">'+tag+'</span>';
+  if(fwd||state.revealed)h+='<button class="ghost" data-act="speak">Озвучить</button>';
+  h+='</div><div class="prompt" lang="'+pl+'">'+esc(prompt)+'</div>';
+  if(state.revealed){
+    h+='<div class="answer" lang="'+al+'">'+esc(answer)+'</div><div class="bottom"><div class="grades">';
+    [["again","Не помню"],["hard","Трудно"],["good","Помню"]].forEach(function(x){
+      h+='<button class="grade '+x[0]+'" data-act="grade" data-g="'+x[0]+'"><span>'+x[1]+'</span><small>'+fmtIv(outcome(c,x[0]).ms)+'</small></button>';
+    });
+    h+='</div></div>';
+  }else{
+    h+='<div class="bottom"><button class="btn primary wide" data-act="reveal">Показать ответ <kbd>Пробел</kbd></button></div>';
+  }
+  return tiles+h+'</section>';
+}
+function doneHtml(sm){
+  var parts=[];
+  if(sm.next)parts.push("Следующее слово вернётся через "+fmtIv(sm.next-Date.now())+".");
+  if(sm.fresh>0&&sm.left===0)parts.push("Лимит новых слов на сегодня выполнен ("+sm.allow+").");
+  if(!parts.length)parts.push("Все слова пройдены. Новые можно добавить на вкладке «Добавить».");
+  var h='<section class="card done"><h2>'+(sm.day.r>0?"На сейчас всё":"Пока нечего повторять")+'</h2><p class="muted">'+parts.join(" ")+'</p>';
+  var oldBk=!state.meta.bk||Date.now()-state.meta.bk>14*DAY;
+  if(oldBk&&sm.total>=10)h+='<div class="notice">Давно не было резервной копии. Её можно отправить в группу Telegram в разделе «Ещё».</div>';
+  h+='<div class="actions">';
+  if(oldBk&&sm.total>=10)h+='<button class="btn primary" data-act="tab" data-v="set">Сделать копию</button>';
+  if(sm.total-sm.fresh>0)h+='<button class="btn" data-act="ahead">Повторить досрочно</button>';
+  if(sm.fresh>0&&sm.left===0)h+='<button class="btn" data-act="bonus">Ещё 5 новых слов</button>';
+  return h+'</div></section>';
+}
+function rowHtml(c){
+  var now=Date.now(),id=norm(c.w);
+  var due=c.s<0?"новое":(c.d<=now?"пора повторить":"через "+fmtIv(c.d-now));
+  var del=state.confirmDel===id
+    ?'<button class="x warn" data-act="del" data-id="'+esc(id)+'">Удалить?</button>'
+    :'<button class="x" data-act="del" data-id="'+esc(id)+'" aria-label="Удалить слово">✕</button>';
+  return '<li class="row"><div class="rw"><b lang="'+state.lang+'">'+esc(c.w)+'</b><span>'+esc(c.t)+'</span>'+
+    '<em class="meta">'+dotsHtml(c.s)+'<span>'+due+'</span></em></div>'+del+'</li>';
+}
+function listHtml(){
+  var q=state.search.trim().toLowerCase();
+  var arr=cardsOf().sort(function(a,b){return a.c-b.c;});
+  if(q)arr=arr.filter(function(c){return c.w.toLowerCase().indexOf(q)>-1||c.t.toLowerCase().indexOf(q)>-1;});
+  var total=arr.length,shown=(state.showAll||q)?arr:arr.slice(0,100);
+  if(!total)return '<li class="none">Ничего не найдено</li>';
+  var h=shown.map(rowHtml).join("");
+  if(shown.length<total)h+='<li class="more"><button class="btn" data-act="more">Показать все ('+total+')</button></li>';
+  return h;
+}
+function renderList(){var el=$("wlist");if(el)el.innerHTML=listHtml();}
+function viewWords(){
+  var sm=summary();
+  if(!sm.total)return emptyHtml();
+  var names=["Новые","Учу","Закрепляю","Знаю"];
+  var bar='<div class="dist" role="img" aria-label="Распределение слов по этапам">';
+  sm.groups.forEach(function(n,i){if(n)bar+='<span class="g'+i+'" style="flex:'+n+'"></span>';});
+  bar+='</div><ul class="legend">';
+  sm.groups.forEach(function(n,i){bar+='<li><i class="g'+i+'"></i>'+names[i]+' <b>'+n+'</b></li>';});
+  bar+='</ul>';
+  return '<section>'+bar+'<input id="q" type="search" placeholder="Поиск по словам и переводам" value="'+esc(state.search)+'" autocomplete="off" autocapitalize="off">'+
+    '<ul class="wlist" id="wlist">'+listHtml()+'</ul></section>';
+}
+function parsedHtml(){
+  if(!state.addText.trim())return "";
+  var r=parseText(state.addText);
+  var h="Найдено "+r.pairs.length+" "+plural(r.pairs.length,"пара","пары","пар");
+  if(r.bad.length)h+=", строк без перевода: "+r.bad.length;
+  if(r.pairs.length){
+    h+=". Например: "+r.pairs.slice(0,3).map(function(p){return esc(p[0])+" → "+esc(p[1]);}).join(", ");
+  }
+  return h;
+}
+function viewAdd(){
+  var L=LANGS[state.lang],r=state.addResult;
+  var parsed=state.addText.trim()?parseText(state.addText).pairs.length:0;
+  var h='<section class="panel"><h2>Добавить слова: '+esc(L.name.toLowerCase())+'</h2>'+
+    '<p class="muted">Одно слово на строку, слово и перевод через пробел. Список можно скопировать из Telegram и вставить в поле ниже, либо выбрать файл .txt. Если слово состоит из нескольких слов («por favor»), поставьте между ним и переводом тире, «;» или Tab.</p>'+
+    '<div class="actions"><label class="btn" for="file">Выбрать файл .txt</label><input id="file" type="file" accept=".txt,text/plain" hidden></div>'+
+    '<textarea id="paste" rows="8" placeholder="'+esc(L.ph)+'" spellcheck="false" autocapitalize="off" autocorrect="off">'+esc(state.addText)+'</textarea>'+
+    '<p class="muted" id="parsed">'+parsedHtml()+'</p>'+
+    '<div class="actions"><button class="btn primary wide" style="margin-top:0" id="importBtn" data-act="import"'+(parsed?'':' disabled')+'>Добавить в «'+esc(L.name)+'»</button></div>';
+  if(r){
+    h+='<div class="notice">Добавлено: '+r.added+' '+plural(r.added,"слово","слова","слов")+'.'+
+      (r.dups?' Уже были в списке: '+r.dups+'.':'')+(r.bad?' Пропущено строк без перевода: '+r.bad+'.':'')+
+      (r.added?' Новые слова будут появляться по '+state.meta.limit+' в день.':'')+
+      ' <button class="ghost" data-act="tab" data-v="learn">Начать учить</button></div>';
+  }
+  return h+'</section>';
+}
+function viewSet(){
+  var L=LANGS[state.lang],n=cardsOf().length,fwd=state.meta.dir!=="rev",rs=state.restore;
+  var h='<section class="panel"><h2>Настройки</h2>';
+  h+='<div class="set-row" style="display:block"><p><b>Резервная копия</b></p><p class="muted">Слова и прогресс хранятся в памяти этого телефона. Если удалить значок приложения или очистить данные Safari, они пропадут, поэтому раз в одну-две недели отправляйте копию в свою группу в Telegram. Последняя копия: '+(state.meta.bk?new Date(state.meta.bk).toLocaleDateString("ru-RU"):"ещё не делали")+'.</p>'+
+    '<div class="actions"><button class="btn primary" data-act="bk-share">Отправить копию</button><button class="btn" data-act="bk-copy">Скопировать текст</button><button class="btn" data-act="exp-txt"'+(n?'':' disabled')+'>Список .txt ('+esc(L.name.toLowerCase())+')</button></div></div>';
+  h+='<div class="set-row" style="display:block"><p><b>Восстановить из копии</b></p><p class="muted">Заменит слова и прогресс обоих языков. Выберите файл копии или вставьте скопированный текст.</p>';
+  if(rs){
+    h+='<div class="notice">В копии: испанский — '+rs.es+', английский — '+rs.en+'. Текущие слова будут заменены.</div>'+
+      '<div class="actions"><button class="btn warn" data-act="restore-yes">Заменить</button><button class="btn" data-act="restore-no">Отмена</button></div>';
+  }else{
+    h+='<div class="actions"><label class="btn" for="bfile">Выбрать файл копии</label><input id="bfile" type="file" accept=".json,application/json,text/plain" hidden></div>'+
+      '<textarea id="rpaste" rows="3" placeholder="Или вставьте текст копии сюда" spellcheck="false" autocapitalize="off" autocorrect="off">'+esc(state.rtext)+'</textarea>'+
+      '<div class="actions"><button class="btn" data-act="restore-paste">Загрузить из текста</button></div>';
+  }
+  h+='</div>';
+  h+='<div class="set-row"><div><p><b>Новых слов в день</b></p><p class="muted">Для обоих языков</p></div>'+
+    '<div class="stepper"><button data-act="lim" data-d="-5" aria-label="Меньше">−</button><output>'+state.meta.limit+'</output><button data-act="lim" data-d="5" aria-label="Больше">+</button></div></div>';
+  h+='<div class="set-row"><div><p><b>На карточке сначала</b></p></div><div class="seg">'+
+    '<button data-act="dir" data-v="fwd" aria-selected="'+fwd+'">Слово</button>'+
+    '<button data-act="dir" data-v="rev" aria-selected="'+!fwd+'">Перевод</button></div></div>';
+  h+='<div class="set-row" style="display:block"><p><b>Расписание повторений</b></p><p class="muted">Верный ответ переводит слово на следующий интервал. «Не помню» возвращает его в начало, «Трудно» повторяет текущий интервал.</p>'+
+    '<ul class="steps">'+STEPS.map(function(ms){return '<li>'+fmtIv(ms)+'</li>';}).join("")+'</ul></div>';
+  if(state.confirmWipe){
+    h+='<div class="set-row"><div><p><b>Удалить все слова ('+esc(L.name.toLowerCase())+')?</b></p><p class="muted">Вместе с прогрессом. Это нельзя отменить.</p></div>'+
+      '<div class="actions"><button class="btn warn" data-act="wipe-yes">Да, удалить '+n+'</button><button class="btn" data-act="wipe-no">Отмена</button></div></div>';
+  }else{
+    h+='<div class="set-row"><div><p><b>Очистить язык</b></p><p class="muted">Удалить все слова раздела «'+esc(L.name)+'»</p></div>'+
+      '<button class="btn warn" data-act="wipe"'+(n?'':' disabled')+'>Удалить слова</button></div>';
+  }
+  return h+'</section>';
+}
+
+function dueFor(l){
+  var now=Date.now(),n=0;
+  cardsOf(l).forEach(function(c){if(c.s>=0&&c.d<=now)n++;});
+  return n;
+}
+function renderChrome(){
+  var seg="";
+  Object.keys(LANGS).forEach(function(l){
+    var d=dueFor(l);
+    seg+='<button role="tab" data-act="lang" data-v="'+l+'" aria-selected="'+(state.lang===l)+'">'+LANGS[l].name+(d?' <span class="badge">'+d+'</span>':'')+'</button>';
+  });
+  $("langSeg").innerHTML=seg;
+  $("tabs").innerHTML=TABS.map(function(t){return '<button role="tab" data-act="tab" data-v="'+t[0]+'" aria-selected="'+(state.tab===t[0])+'">'+t[2]+'<span>'+t[1]+'</span></button>';}).join("");
+  renderStatus();
+  var ios=/iPhone|iPad|iPod/.test(navigator.userAgent),standalone=(navigator.standalone===true)||(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches);
+  var b=$("banner");
+  if(ios&&!standalone){
+    b.hidden=false;
+    b.textContent="Сначала добавьте приложение на экран «Домой»: «Поделиться» → «На экран „Домой“». Данные в Safari и в значке хранятся раздельно, поэтому учите слова только из значка.";
+  }else b.hidden=true;
+}
+function renderStatus(){
+  $("sync").innerHTML=state.saveErr?'<span class="errtxt">Не сохраняется!</span>':'<i></i><span>Сохранено</span>';
+}
+function render(force){
+  var ae=document.activeElement;
+  if(!force&&ae&&(ae.tagName==="INPUT"||ae.tagName==="TEXTAREA")&&$("view").contains(ae)){state.pend=true;return;}
+  state.pend=false;
+  renderChrome();
+  var h;
+  if(state.tab==="learn")h=viewLearn();
+  else if(state.tab==="words")h=viewWords();
+  else if(state.tab==="add")h=viewAdd();
+  else h=viewSet();
+  $("view").innerHTML=h;
+}
+
+/* ---------- actions ---------- */
+function speak(){
+  var c=pick();if(!c)return;
+  try{
+    var u=new SpeechSynthesisUtterance(c.w);u.lang=LANGS[state.lang].tts;
+    speechSynthesis.cancel();speechSynthesis.speak(u);
+  }catch(e){toast("Озвучка недоступна");}
+}
+function act(a,t){
+  var v=t.getAttribute("data-v");
+  switch(a){
+    case "lang":
+      state.lang=v;try{localStorage.setItem("wd_lang",v);}catch(e){}
+      state.cur=null;state.revealed=false;state.ahead=false;state.search="";state.showAll=false;state.addResult=null;state.confirmWipe=false;state.confirmDel=null;state.restore=null;
+      render(true);break;
+    case "tab":
+      state.tab=v;state.confirmWipe=false;state.confirmDel=null;state.restore=null;if(v!=="add")state.addResult=null;
+      render(true);try{window.scrollTo(0,0);}catch(e){}break;
+    case "reveal":state.revealed=true;render(true);break;
+    case "grade":grade(t.getAttribute("data-g"));break;
+    case "speak":speak();break;
+    case "bk-share":
+      deliver("slova-kopiya-"+today()+".json","application/json",backupText(),function(){markBackup();render(true);toast("Копия готова. Отправьте её в группу");});break;
+    case "bk-copy":
+      copyText(backupText(),function(){markBackup();render(true);toast("Текст скопирован. Вставьте его в сообщение в группе");});break;
+    case "restore-yes":doRestore();break;
+    case "restore-no":state.restore=null;render(true);break;
+    case "restore-paste":
+      try{state.restore=parseBackup(state.rtext);render(true);}catch(e){toast("Это не текст копии приложения");}break;
+    case "ahead":state.ahead=true;state.cur=null;state.revealed=false;render(true);break;
+    case "bonus":dayState().b=(dayState().b||0)+5;touch(1);state.cur=null;render(true);break;
+    case "more":state.showAll=true;renderList();break;
+    case "del":
+      var id=t.getAttribute("data-id");
+      if(state.confirmDel===id){
+        if(state.cards[state.lang][id]){delete state.cards[state.lang][id];touch(1);}
+        state.confirmDel=null;if(state.cur&&state.cur.id===id)state.cur=null;
+        render(true);
+      }else{state.confirmDel=id;renderList();}
+      break;
+    case "lim":
+      state.meta.limit=Math.max(5,Math.min(100,state.meta.limit+parseInt(t.getAttribute("data-d"),10)));
+      touch(1);render(true);break;
+    case "dir":state.meta.dir=v;touch(1);state.cur=null;state.revealed=false;render(true);break;
+    case "import":doImport();break;
+    case "exp-txt":
+      deliver("slova-"+state.lang+".txt","text/plain",cardsOf().sort(function(a,b){return a.c-b.c;}).map(function(c){return c.w+" - "+c.t;}).join("\n"));break;
+    case "wipe":state.confirmWipe=true;render(true);break;
+    case "wipe-no":state.confirmWipe=false;render(true);break;
+    case "wipe-yes":
+      state.cards[state.lang]={};touch(1);
+      state.confirmWipe=false;state.cur=null;render(true);toast("Слова удалены");break;
+  }
+}
+document.addEventListener("click",function(e){
+  var t=e.target.closest?e.target.closest("[data-act]"):null;
+  if(t)act(t.getAttribute("data-act"),t);
+});
+document.addEventListener("input",function(e){
+  var id=e.target.id;
+  if(id==="q"){state.search=e.target.value;renderList();}
+  else if(id==="rpaste"){state.rtext=e.target.value;}
+  else if(id==="paste"){
+    state.addText=e.target.value;
+    $("parsed").innerHTML=parsedHtml();
+    $("importBtn").disabled=!(state.addText.trim()&&parseText(state.addText).pairs.length);
+  }
+});
+document.addEventListener("change",function(e){
+  var fid=e.target.id;
+  if((fid!=="file"&&fid!=="bfile")||!e.target.files||!e.target.files[0])return;
+  var f=e.target.files[0];
+  function read(enc,cb){var rd=new FileReader();rd.onload=function(){cb(String(rd.result));};rd.readAsText(f,enc);}
+  if(fid==="bfile"){
+    read("utf-8",function(txt){
+      try{state.restore=parseBackup(txt);render(true);}catch(x){toast("Это не файл копии приложения");}
+    });
+    return;
+  }
+  read("utf-8",function(txt){
+    if(txt.indexOf(String.fromCharCode(65533))>-1)read("windows-1251",function(t2){state.addText=t2;state.addResult=null;render(true);});
+    else{state.addText=txt;state.addResult=null;render(true);}
+  });
+});
+document.addEventListener("focusout",function(){
+  if(state.pend)setTimeout(function(){if(state.pend)render();},0);
+});
+document.addEventListener("keydown",function(e){
+  if(state.tab!=="learn")return;
+  var tg=e.target&&e.target.tagName;
+  if(tg==="INPUT"||tg==="TEXTAREA"||tg==="SELECT"||tg==="BUTTON")return;
+  if(e.metaKey||e.ctrlKey||e.altKey)return;
+  if(!state.revealed&&(e.key===" "||e.key==="Enter")&&state.cur){e.preventDefault();state.revealed=true;render(true);}
+  else if(state.revealed&&state.cur){
+    var g={"1":"again","2":"hard","3":"good"}[e.key];
+    if(g){e.preventDefault();grade(g);}
+  }
+});
+setInterval(function(){
+  if(state.tab==="learn"&&!state.cur)render();
+},20000);
+
+/* ---------- start ---------- */
+(function boot(){
+  var o=null;
+  try{o=JSON.parse(localStorage.getItem(KEY)||"null");}catch(e){}
+  applyData(o);
+  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
+  try{if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)navigator.serviceWorker.register("sw.js").catch(function(){});}catch(e){}
+  render(true);
+})();
+})();
+</script>
+</body>
+</html>
