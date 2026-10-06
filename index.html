@@ -23,6 +23,7 @@
   --f-body:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-disp:"Unbounded","Onest",system-ui,sans-serif;
   --r:14px;
+  --alarm:#b3261e;--alarm-fg:#ffffff;--alarm-btn:#ffffff;--alarm-btn-fg:#8c1d18;
 }
 @media (prefers-color-scheme: dark){
   :root{
@@ -119,6 +120,14 @@ textarea{resize:vertical;min-height:170px;font-family:ui-monospace,SFMono-Regula
 .steps{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:10px 0 0}
 .steps li{background:var(--surface2);border-radius:8px;padding:3px 9px;font-size:.84rem;font-variant-numeric:tabular-nums}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:.92rem;max-width:calc(100% - 32px);z-index:10}
+.prompt.long{font-size:clamp(1.7rem,8.5vw,2.5rem);line-height:1.2}
+.answer.long{font-size:clamp(1.3rem,6vw,1.7rem)}
+.lock{position:fixed;inset:0;z-index:100;background:var(--alarm);color:var(--alarm-fg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;padding-top:calc(24px + env(safe-area-inset-top,0px));padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));text-align:center}
+.lock h2{font:700 1.55rem/1.25 var(--f-disp);margin:0;text-wrap:balance}
+.lock p{margin:0;max-width:32ch;font-size:1.08rem;line-height:1.45}
+.lock button{background:var(--alarm-btn);color:var(--alarm-btn-fg);border:0;border-radius:18px;min-height:68px;min-width:min(100%,280px);padding:14px 28px;font-weight:700;font-size:1.2rem}
+.lock button:active{transform:scale(.98)}
+.lock button:focus-visible{outline:3px solid var(--alarm-fg);outline-offset:3px}
 [hidden]{display:none!important}
 @media (prefers-reduced-motion:no-preference){
   .grade,.btn,.seg button,.nav button{transition:transform .08s}
@@ -137,6 +146,7 @@ textarea{resize:vertical;min-height:170px;font-family:ui-monospace,SFMono-Regula
   <main id="view"><p class="muted">Загружаю…</p></main>
 </div>
 <nav class="nav" id="tabs" role="tablist" aria-label="Разделы"></nav>
+<div class="lock" id="lock" hidden role="alertdialog" aria-modal="true" aria-labelledby="lockTitle"></div>
 <div class="toast" id="toast" hidden role="status"></div>
 
 <script>
@@ -147,8 +157,8 @@ var MIN=60000, HOUR=3600000, DAY=86400000;
 /* Интервалы повторения по кривой забывания: 20 мин, 1, 2, 4, 7, 14, 30, 60, 120 дней */
 var STEPS=[20*MIN,1*DAY,2*DAY,4*DAY,7*DAY,14*DAY,30*DAY,60*DAY,120*DAY];
 var LANGS={
-  es:{name:"Испанский",tts:"es-ES",ph:"gato кот\ncasa дом\npor favor - пожалуйста"},
-  en:{name:"Английский",tts:"en-US",ph:"cat кот\nhouse дом\nthank you - спасибо"}
+  es:{name:"Испанский",tts:"es-ES",ph:"gato кот\ncasa дом\npor favor - пожалуйста\nbuenos días - доброе утро"},
+  en:{name:"Английский",tts:"en-US",ph:"cat кот\nhouse дом\nthank you - спасибо\nsee you later - увидимся"}
 };
 var SV='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
 var TABS=[
@@ -161,7 +171,7 @@ var TABS=[
 var state={
   cards:{es:{},en:{}},
   meta:{limit:15,dir:"fwd",days:{}},
-  saveErr:false,restore:null,rtext:"",
+  saveErr:false,restore:null,rtext:"",lockStep:0,
   lang:"es",tab:"learn",cur:null,revealed:false,ahead:false,
   search:"",showAll:false,addText:"",addResult:null,confirmWipe:false,confirmDel:null,pend:false
 };
@@ -204,6 +214,7 @@ function applyData(o){
     if(o.meta.dir==="fwd"||o.meta.dir==="rev")state.meta.dir=o.meta.dir;
     if(o.meta.days&&typeof o.meta.days==="object")state.meta.days=o.meta.days;
     if(typeof o.meta.bk==="number")state.meta.bk=o.meta.bk;
+    if(typeof o.meta.fs==="number")state.meta.fs=o.meta.fs;
   }
   ["es","en"].forEach(function(l){
     if(!Array.isArray(o[l]))return;
@@ -216,7 +227,7 @@ function applyData(o){
   });
 }
 function snapshot(){
-  var o={v:1,meta:{limit:state.meta.limit,dir:state.meta.dir,days:state.meta.days,bk:state.meta.bk||0}};
+  var o={v:1,meta:{limit:state.meta.limit,dir:state.meta.dir,days:state.meta.days,bk:state.meta.bk||0,fs:state.meta.fs||0}};
   ["es","en"].forEach(function(l){
     o[l]=cardsOf(l).sort(function(a,b){return a.c-b.c;}).map(function(c){return [c.w,c.t,c.s,c.d,c.l,c.c];});
   });
@@ -249,6 +260,7 @@ function parseBackup(txt){
 function doRestore(){
   var r=state.restore;if(!r)return;
   applyData(r.obj);
+  state.meta.bk=Date.now();
   state.restore=null;state.rtext="";state.cur=null;state.revealed=false;
   persist();render(true);toast("Копия восстановлена");
 }
@@ -271,6 +283,27 @@ function deliver(name,mime,text,onDone){
   }
   download();
 }
+/* Отправка копии: меню «Поделиться». onShared вызывается, когда меню закрыто после отправки; onSaved, когда меню недоступно и файл сохранён или скопирован. */
+function sendBackup(onShared,onSaved){
+  var text=backupText(),name="slova-kopiya-"+today()+".json";
+  var blob=new Blob([text],{type:"application/json"}),file=null;
+  try{file=new File([blob],name,{type:"application/json"});}catch(e){}
+  function saveLocal(){
+    try{
+      var url=URL.createObjectURL(blob),a=document.createElement("a");
+      a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(function(){URL.revokeObjectURL(url);},5000);
+      onSaved();
+    }catch(e){copyText(text,onSaved);}
+  }
+  if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
+    navigator.share({files:[file]}).then(onShared).catch(function(e){
+      if(!e||e.name!=="AbortError")saveLocal();
+    });
+    return;
+  }
+  saveLocal();
+}
 function copyText(text,done){
   function fb(){
     try{
@@ -282,6 +315,58 @@ function copyText(text,done){
     }catch(e){toast("Не удалось скопировать");}
   }
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(done,fb);else fb();
+}
+
+/* ---------- блокировка раз в 14 дней ---------- */
+var LOCK_DAYS=14;
+function totalWords(){return Object.keys(state.cards.es).length+Object.keys(state.cards.en).length;}
+function ensureBase(){
+  if(state.meta.bk||state.meta.fs)return;
+  if(totalWords()>0){state.meta.fs=Date.now();touch();}
+}
+function daysSince(){
+  var base=state.meta.bk||state.meta.fs;
+  return base?Math.max(0,Math.floor((Date.now()-base)/DAY)):0;
+}
+function lockNeeded(){
+  if(!totalWords())return false;
+  var base=state.meta.bk||state.meta.fs;
+  if(!base)return false;
+  return Date.now()-base>LOCK_DAYS*DAY;
+}
+function lockHtml(){
+  if(state.lockStep===1){
+    return '<h2 id="lockTitle">Отправьте копию в Telegram</h2><p>Файл копии сохранён на телефоне (или текст скопирован). Отправьте его в свою группу в Telegram, затем нажмите кнопку.</p><button data-act="lock-done">Я отправил копию</button>';
+  }
+  var ds=daysSince();
+  return '<h2 id="lockTitle">Нужна резервная копия</h2><p>Прошло '+ds+' '+plural(ds,"день","дня","дней")+' без копии. Отправьте её в свою группу в Telegram, и приложение снова заработает.</p><button data-act="lock-send">Отправить копию</button>';
+}
+function setInert(on){
+  [document.querySelector(".wrap"),$("tabs")].forEach(function(el){
+    if(!el)return;
+    try{el.inert=on;}catch(e){}
+    if(on)el.setAttribute("aria-hidden","true");else el.removeAttribute("aria-hidden");
+  });
+}
+function renderLock(){
+  var el=$("lock");
+  if(!lockNeeded()){
+    if(!el.hidden){el.hidden=true;el.innerHTML="";el.removeAttribute("data-step");}
+    setInert(false);state.lockStep=0;return;
+  }
+  var key=state.lockStep+"|"+daysSince();
+  if(el.hidden||el.getAttribute("data-step")!==key){
+    el.innerHTML=lockHtml();el.setAttribute("data-step",key);el.hidden=false;
+    var b=el.querySelector("button");if(b)try{b.focus();}catch(e){}
+  }
+  setInert(true);
+}
+function lockSend(){
+  sendBackup(unlockDone,function(){state.lockStep=1;renderLock();});
+}
+function unlockDone(){
+  markBackup();state.lockStep=0;
+  renderLock();render(true);toast("Копия сохранена. Можно продолжать");
 }
 
 /* ---------- scheduling ---------- */
@@ -344,8 +429,10 @@ function grade(g){
 }
 
 /* ---------- import ---------- */
+function isPhrase(w){return /\s/.test(String(w).trim());}
 function splitLine(line){
-  var seps=[/\t+/,/\s+[-–—=]+\s+/,/\s*[;|]\s*/];
+  /* Разделитель: Tab, тире с пробелом хотя бы с одной стороны, «=», «;» или «|». Внутри фразы пробелы. */
+  var seps=[/\t+/,/\s+[-–—=]+\s*|\s*[-–—=]+\s+/,/\s*[;|]\s*/];
   for(var i=0;i<seps.length;i++){
     var m=seps[i].exec(line);
     if(m){
@@ -353,12 +440,13 @@ function splitLine(line){
       if(w&&t)return [w,t];
     }
   }
+  /* Без разделителя: перевод начинается с первого слова на кириллице. */
   var tok=line.split(/\s+/);
   if(tok.length<2)return null;
-  var ci=-1;
-  for(var j=1;j<tok.length;j++){if(/[Ѐ-ӿ]/.test(tok[j])){ci=j;break;}}
-  if(ci<1)ci=1;
-  return [tok.slice(0,ci).join(" "),tok.slice(ci).join(" ")];
+  for(var j=1;j<tok.length;j++){
+    if(/[Ѐ-ӿ]/.test(tok[j]))return [tok.slice(0,j).join(" "),tok.slice(j).join(" ")];
+  }
+  return null;
 }
 function parseText(text){
   var pairs=[],bad=[];
@@ -381,7 +469,7 @@ function doImport(){
     cs[id]={w:p[0],t:p[1],s:-1,d:0,l:0,c:base+i};
     added++;
   });
-  if(added)touch(added);
+  if(added){ensureBase();touch(added);}
   state.addText="";
   state.addResult={added:added,dups:dups,bad:r.bad.length};
   state.cur=null;
@@ -411,16 +499,16 @@ function viewLearn(){
   var prompt=fwd?c.w:c.t,answer=fwd?c.t:c.w;
   var pl=fwd?state.lang:"ru",al=fwd?"ru":state.lang;
   var kind=state.cur.kind;
-  var tag;
-  if(c.s<0)tag="Новое слово";
+  var tag,ph=isPhrase(c.w);
+  if(c.s<0)tag=ph?"Новая фраза":"Новое слово";
   else{
-    tag=(kind==="ahead"?"Досрочно":"Повторение")+(c.s===0?" · заново":" · этап "+c.s+" из "+STEPS.length);
+    tag=(kind==="ahead"?"Досрочно":"Повторение")+(ph?" · фраза":"")+(c.s===0?" · заново":" · этап "+c.s+" из "+STEPS.length);
   }
   var h='<section class="card'+(state.revealed?'':' tap')+'"'+(state.revealed?'':' data-act="reveal"')+'><div class="card-top"><span class="tag">'+tag+'</span>';
   if(fwd||state.revealed)h+='<button class="ghost" data-act="speak">Озвучить</button>';
-  h+='</div><div class="prompt" lang="'+pl+'">'+esc(prompt)+'</div>';
+  h+='</div><div class="prompt'+(prompt.length>16||isPhrase(prompt)?' long':'')+'" lang="'+pl+'">'+esc(prompt)+'</div>';
   if(state.revealed){
-    h+='<div class="answer" lang="'+al+'">'+esc(answer)+'</div><div class="bottom"><div class="grades">';
+    h+='<div class="answer'+(answer.length>22||isPhrase(answer)?' long':'')+'" lang="'+al+'">'+esc(answer)+'</div><div class="bottom"><div class="grades">';
     [["again","Не помню"],["hard","Трудно"],["good","Помню"]].forEach(function(x){
       h+='<button class="grade '+x[0]+'" data-act="grade" data-g="'+x[0]+'"><span>'+x[1]+'</span><small>'+fmtIv(outcome(c,x[0]).ms)+'</small></button>';
     });
@@ -436,10 +524,10 @@ function doneHtml(sm){
   if(sm.fresh>0&&sm.left===0)parts.push("Лимит новых слов на сегодня выполнен ("+sm.allow+").");
   if(!parts.length)parts.push("Все слова пройдены. Новые можно добавить на вкладке «Добавить».");
   var h='<section class="card done"><h2>'+(sm.day.r>0?"На сейчас всё":"Пока нечего повторять")+'</h2><p class="muted">'+parts.join(" ")+'</p>';
-  var oldBk=!state.meta.bk||Date.now()-state.meta.bk>14*DAY;
-  if(oldBk&&sm.total>=10)h+='<div class="notice">Давно не было резервной копии. Её можно отправить в группу Telegram в разделе «Ещё».</div>';
+  var ds=daysSince(),soon=totalWords()>0&&ds>=10;
+  if(soon)h+='<div class="notice">Без резервной копии прошло '+ds+' '+plural(ds,"день","дня","дней")+'. Через '+Math.max(1,LOCK_DAYS+1-ds)+' '+plural(Math.max(1,LOCK_DAYS+1-ds),"день","дня","дней")+' приложение попросит копию и остановится, пока вы её не отправите.</div>';
   h+='<div class="actions">';
-  if(oldBk&&sm.total>=10)h+='<button class="btn primary" data-act="tab" data-v="set">Сделать копию</button>';
+  if(soon)h+='<button class="btn primary" data-act="tab" data-v="set">Сделать копию</button>';
   if(sm.total-sm.fresh>0)h+='<button class="btn" data-act="ahead">Повторить досрочно</button>';
   if(sm.fresh>0&&sm.left===0)h+='<button class="btn" data-act="bonus">Ещё 5 новых слов</button>';
   return h+'</div></section>';
@@ -479,7 +567,9 @@ function viewWords(){
 function parsedHtml(){
   if(!state.addText.trim())return "";
   var r=parseText(state.addText);
+  var np=r.pairs.filter(function(p){return isPhrase(p[0]);}).length;
   var h="Найдено "+r.pairs.length+" "+plural(r.pairs.length,"пара","пары","пар");
+  if(np)h+=" (фраз: "+np+")";
   if(r.bad.length)h+=", строк без перевода: "+r.bad.length;
   if(r.pairs.length){
     h+=". Например: "+r.pairs.slice(0,3).map(function(p){return esc(p[0])+" → "+esc(p[1]);}).join(", ");
@@ -490,23 +580,28 @@ function viewAdd(){
   var L=LANGS[state.lang],r=state.addResult;
   var parsed=state.addText.trim()?parseText(state.addText).pairs.length:0;
   var h='<section class="panel"><h2>Добавить слова: '+esc(L.name.toLowerCase())+'</h2>'+
-    '<p class="muted">Одно слово на строку, слово и перевод через пробел. Список можно скопировать из Telegram и вставить в поле ниже, либо выбрать файл .txt. Если слово состоит из нескольких слов («por favor»), поставьте между ним и переводом тире, «;» или Tab.</p>'+
+    '<p class="muted">Одно слово или одна фраза на строку. Список можно скопировать из Telegram и вставить в поле ниже либо выбрать файл .txt.</p>'+
+    '<p class="muted"><b>Слово:</b> слово, пробел, перевод<br><code>gato кот</code><br><b>Фраза:</b> слова фразы через пробел, затем тире и перевод<br><code>por favor - пожалуйста</code></p>'+
     '<div class="actions"><label class="btn" for="file">Выбрать файл .txt</label><input id="file" type="file" accept=".txt,text/plain" hidden></div>'+
     '<textarea id="paste" rows="8" placeholder="'+esc(L.ph)+'" spellcheck="false" autocapitalize="off" autocorrect="off">'+esc(state.addText)+'</textarea>'+
     '<p class="muted" id="parsed">'+parsedHtml()+'</p>'+
     '<div class="actions"><button class="btn primary wide" style="margin-top:0" id="importBtn" data-act="import"'+(parsed?'':' disabled')+'>Добавить в «'+esc(L.name)+'»</button></div>';
   if(r){
-    h+='<div class="notice">Добавлено: '+r.added+' '+plural(r.added,"слово","слова","слов")+'.'+
+    h+='<div class="notice">Добавлено слов и фраз: '+r.added+'.'+
       (r.dups?' Уже были в списке: '+r.dups+'.':'')+(r.bad?' Пропущено строк без перевода: '+r.bad+'.':'')+
       (r.added?' Новые слова будут появляться по '+state.meta.limit+' в день.':'')+
       ' <button class="ghost" data-act="tab" data-v="learn">Начать учить</button></div>';
   }
   return h+'</section>';
 }
+function memInfo(){
+  var chars=0;try{chars=JSON.stringify(snapshot()).length;}catch(e){}
+  return {total:totalWords(),es:Object.keys(state.cards.es).length,en:Object.keys(state.cards.en).length,kb:Math.round(chars*2/1024)};
+}
 function viewSet(){
   var L=LANGS[state.lang],n=cardsOf().length,fwd=state.meta.dir!=="rev",rs=state.restore;
   var h='<section class="panel"><h2>Настройки</h2>';
-  h+='<div class="set-row" style="display:block"><p><b>Резервная копия</b></p><p class="muted">Слова и прогресс хранятся в памяти этого телефона. Если удалить значок приложения или очистить данные Safari, они пропадут, поэтому раз в одну-две недели отправляйте копию в свою группу в Telegram. Последняя копия: '+(state.meta.bk?new Date(state.meta.bk).toLocaleDateString("ru-RU"):"ещё не делали")+'.</p>'+
+  h+='<div class="set-row" style="display:block"><p><b>Резервная копия</b></p><p class="muted">Слова и прогресс хранятся в памяти этого телефона. Если удалить значок приложения или очистить данные Safari, они пропадут. Раз в '+LOCK_DAYS+' дней приложение остановится и потребует отправить копию в вашу группу в Telegram, пока вы её не отправите. Последняя копия: '+(state.meta.bk?new Date(state.meta.bk).toLocaleDateString("ru-RU"):"ещё не делали")+'.</p>'+
     '<div class="actions"><button class="btn primary" data-act="bk-share">Отправить копию</button><button class="btn" data-act="bk-copy">Скопировать текст</button><button class="btn" data-act="exp-txt"'+(n?'':' disabled')+'>Список .txt ('+esc(L.name.toLowerCase())+')</button></div></div>';
   h+='<div class="set-row" style="display:block"><p><b>Восстановить из копии</b></p><p class="muted">Заменит слова и прогресс обоих языков. Выберите файл копии или вставьте скопированный текст.</p>';
   if(rs){
@@ -518,6 +613,8 @@ function viewSet(){
       '<div class="actions"><button class="btn" data-act="restore-paste">Загрузить из текста</button></div>';
   }
   h+='</div>';
+  var mem=memInfo();
+  h+='<div class="set-row" style="display:block"><p><b>Память</b></p><p class="muted">Слов и фраз: '+mem.total+' (испанский '+mem.es+', английский '+mem.en+'). Занято около '+mem.kb+' КБ из примерно 5000 КБ, которые даёт браузер.'+(mem.kb>4000?' Память почти заполнена: удалите ненужное или очистите язык.':'')+'</p></div>';
   h+='<div class="set-row"><div><p><b>Новых слов в день</b></p><p class="muted">Для обоих языков</p></div>'+
     '<div class="stepper"><button data-act="lim" data-d="-5" aria-label="Меньше">−</button><output>'+state.meta.limit+'</output><button data-act="lim" data-d="5" aria-label="Больше">+</button></div></div>';
   h+='<div class="set-row"><div><p><b>На карточке сначала</b></p></div><div class="seg">'+
@@ -570,6 +667,7 @@ function render(force){
   else if(state.tab==="add")h=viewAdd();
   else h=viewSet();
   $("view").innerHTML=h;
+  renderLock();
 }
 
 /* ---------- actions ---------- */
@@ -594,7 +692,9 @@ function act(a,t){
     case "grade":grade(t.getAttribute("data-g"));break;
     case "speak":speak();break;
     case "bk-share":
-      deliver("slova-kopiya-"+today()+".json","application/json",backupText(),function(){markBackup();render(true);toast("Копия готова. Отправьте её в группу");});break;
+      sendBackup(function(){markBackup();render(true);toast("Копия отправлена");},function(){markBackup();render(true);toast("Копия сохранена. Отправьте её в группу");});break;
+    case "lock-send":lockSend();break;
+    case "lock-done":unlockDone();break;
     case "bk-copy":
       copyText(backupText(),function(){markBackup();render(true);toast("Текст скопирован. Вставьте его в сообщение в группе");});break;
     case "restore-yes":doRestore();break;
@@ -660,7 +760,7 @@ document.addEventListener("focusout",function(){
   if(state.pend)setTimeout(function(){if(state.pend)render();},0);
 });
 document.addEventListener("keydown",function(e){
-  if(state.tab!=="learn")return;
+  if(state.tab!=="learn"||lockNeeded())return;
   var tg=e.target&&e.target.tagName;
   if(tg==="INPUT"||tg==="TEXTAREA"||tg==="SELECT"||tg==="BUTTON")return;
   if(e.metaKey||e.ctrlKey||e.altKey)return;
@@ -671,14 +771,19 @@ document.addEventListener("keydown",function(e){
   }
 });
 setInterval(function(){
+  renderLock();
   if(state.tab==="learn"&&!state.cur)render();
 },20000);
+document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState==="visible")renderLock();
+});
 
 /* ---------- start ---------- */
 (function boot(){
   var o=null;
   try{o=JSON.parse(localStorage.getItem(KEY)||"null");}catch(e){}
   applyData(o);
+  ensureBase();
   try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
   try{if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)navigator.serviceWorker.register("sw.js").catch(function(){});}catch(e){}
   render(true);
