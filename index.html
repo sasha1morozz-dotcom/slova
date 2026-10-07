@@ -122,6 +122,10 @@ textarea{resize:vertical;min-height:170px;font-family:ui-monospace,SFMono-Regula
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:.92rem;max-width:calc(100% - 32px);z-index:10}
 .prompt.long{font-size:clamp(1.7rem,8.5vw,2.5rem);line-height:1.2}
 .answer.long{font-size:clamp(1.3rem,6vw,1.7rem)}
+.ex{margin-top:16px;padding:12px 14px;background:var(--surface2);border-radius:12px}
+.ex small{display:block;color:var(--muted);font-size:.74rem;letter-spacing:.04em;margin-bottom:4px}
+.ex-t{font-size:1.05rem;line-height:1.4;overflow-wrap:anywhere}
+.ex-r{margin-top:4px;color:var(--muted);font-size:.95rem;line-height:1.4;overflow-wrap:anywhere}
 .lock{position:fixed;inset:0;z-index:100;background:var(--alarm);color:var(--alarm-fg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;padding-top:calc(24px + env(safe-area-inset-top,0px));padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));text-align:center}
 .lock h2{font:700 1.55rem/1.25 var(--f-disp);margin:0;text-wrap:balance}
 .lock p{margin:0;max-width:32ch;font-size:1.08rem;line-height:1.45}
@@ -221,7 +225,7 @@ function applyData(o){
     var cs={};
     o[l].forEach(function(a,i){
       if(!Array.isArray(a)||!a[0])return;
-      cs[norm(a[0])]={w:String(a[0]),t:String(a[1]),s:typeof a[2]==="number"?a[2]:-1,d:+a[3]||0,l:+a[4]||0,c:+a[5]||i};
+      cs[norm(a[0])]={w:String(a[0]),t:String(a[1]),s:typeof a[2]==="number"?a[2]:-1,d:+a[3]||0,l:+a[4]||0,c:+a[5]||i,x:a[6]?String(a[6]):"",xt:a[7]?String(a[7]):""};
     });
     state.cards[l]=cs;
   });
@@ -229,7 +233,7 @@ function applyData(o){
 function snapshot(){
   var o={v:1,meta:{limit:state.meta.limit,dir:state.meta.dir,days:state.meta.days,bk:state.meta.bk||0,fs:state.meta.fs||0}};
   ["es","en"].forEach(function(l){
-    o[l]=cardsOf(l).sort(function(a,b){return a.c-b.c;}).map(function(c){return [c.w,c.t,c.s,c.d,c.l,c.c];});
+    o[l]=cardsOf(l).sort(function(a,b){return a.c-b.c;}).map(function(c){return [c.w,c.t,c.s,c.d,c.l,c.c,c.x||"",c.xt||""];});
   });
   return o;
 }
@@ -453,25 +457,31 @@ function parseText(text){
   String(text).replace(/^﻿/,"").split(/\r?\n/).forEach(function(raw){
     var line=raw.trim();
     if(!line)return;
-    var p=splitLine(line);
-    if(p)pairs.push(p);else bad.push(line);
+    var seg=line.split(/\s*\/\/\s*/);
+    var p=splitLine(seg[0]);
+    if(p)pairs.push([p[0],p[1],(seg[1]||"").trim(),(seg[2]||"").trim()]);else bad.push(line);
   });
   return {pairs:pairs,bad:bad};
 }
 function doImport(){
   var lang=state.lang,cs=state.cards[lang],r=parseText(state.addText);
   if(!r.pairs.length)return;
-  var base=Date.now(),seen={},added=0,dups=0;
+  var base=Date.now(),seen={},added=0,dups=0,upd=0;
   r.pairs.forEach(function(p,i){
     var id=norm(p[0]);
-    if(cs[id]||seen[id]){dups++;return;}
+    if(seen[id]){dups++;return;}
     seen[id]=1;
-    cs[id]={w:p[0],t:p[1],s:-1,d:0,l:0,c:base+i};
+    if(cs[id]){
+      /* слово уже есть: прогресс не трогаем, только дописываем пример */
+      if(p[2]){cs[id].x=p[2];cs[id].xt=p[3];upd++;}else dups++;
+      return;
+    }
+    cs[id]={w:p[0],t:p[1],s:-1,d:0,l:0,c:base+i,x:p[2],xt:p[3]};
     added++;
   });
-  if(added){ensureBase();touch(added);}
+  if(added||upd){if(added)ensureBase();touch(added+upd);}
   state.addText="";
-  state.addResult={added:added,dups:dups,bad:r.bad.length};
+  state.addResult={added:added,dups:dups,upd:upd,bad:r.bad.length};
   state.cur=null;
   render(true);
 }
@@ -508,7 +518,8 @@ function viewLearn(){
   if(fwd||state.revealed)h+='<button class="ghost" data-act="speak">Озвучить</button>';
   h+='</div><div class="prompt'+(prompt.length>16||isPhrase(prompt)?' long':'')+'" lang="'+pl+'">'+esc(prompt)+'</div>';
   if(state.revealed){
-    h+='<div class="answer'+(answer.length>22||isPhrase(answer)?' long':'')+'" lang="'+al+'">'+esc(answer)+'</div><div class="bottom"><div class="grades">';
+    h+='<div class="answer'+(answer.length>22||isPhrase(answer)?' long':'')+'" lang="'+al+'">'+esc(answer)+'</div>'+
+      (c.x?'<div class="ex"><small>Пример</small><div class="ex-t" lang="'+state.lang+'">'+esc(c.x)+'</div>'+(c.xt?'<div class="ex-r">'+esc(c.xt)+'</div>':'')+'</div>':'')+'<div class="bottom"><div class="grades">';
     [["again","Не помню"],["hard","Трудно"],["good","Помню"]].forEach(function(x){
       h+='<button class="grade '+x[0]+'" data-act="grade" data-g="'+x[0]+'"><span>'+x[1]+'</span><small>'+fmtIv(outcome(c,x[0]).ms)+'</small></button>';
     });
@@ -539,7 +550,7 @@ function rowHtml(c){
     ?'<button class="x warn" data-act="del" data-id="'+esc(id)+'">Удалить?</button>'
     :'<button class="x" data-act="del" data-id="'+esc(id)+'" aria-label="Удалить слово">✕</button>';
   return '<li class="row"><div class="rw"><b lang="'+state.lang+'">'+esc(c.w)+'</b><span>'+esc(c.t)+'</span>'+
-    '<em class="meta">'+dotsHtml(c.s)+'<span>'+due+'</span></em></div>'+del+'</li>';
+    '<em class="meta">'+dotsHtml(c.s)+'<span>'+due+(c.x?' · есть пример':'')+'</span></em></div>'+del+'</li>';
 }
 function listHtml(){
   var q=state.search.trim().toLowerCase();
@@ -569,7 +580,9 @@ function parsedHtml(){
   var r=parseText(state.addText);
   var np=r.pairs.filter(function(p){return isPhrase(p[0]);}).length;
   var h="Найдено "+r.pairs.length+" "+plural(r.pairs.length,"пара","пары","пар");
+  var nx=r.pairs.filter(function(p){return p[2];}).length;
   if(np)h+=" (фраз: "+np+")";
+  if(nx)h+=", с примерами: "+nx;
   if(r.bad.length)h+=", строк без перевода: "+r.bad.length;
   if(r.pairs.length){
     h+=". Например: "+r.pairs.slice(0,3).map(function(p){return esc(p[0])+" → "+esc(p[1]);}).join(", ");
@@ -581,13 +594,13 @@ function viewAdd(){
   var parsed=state.addText.trim()?parseText(state.addText).pairs.length:0;
   var h='<section class="panel"><h2>Добавить слова: '+esc(L.name.toLowerCase())+'</h2>'+
     '<p class="muted">Одно слово или одна фраза на строку. Список можно скопировать из Telegram и вставить в поле ниже либо выбрать файл .txt.</p>'+
-    '<p class="muted"><b>Слово:</b> слово, пробел, перевод<br><code>gato кот</code><br><b>Фраза:</b> слова фразы через пробел, затем тире и перевод<br><code>por favor - пожалуйста</code></p>'+
+    '<p class="muted"><b>Слово:</b> слово, пробел, перевод<br><code>gato кот</code><br><b>Фраза:</b> слова фразы через пробел, затем тире и перевод<br><code>por favor - пожалуйста</code><br><b>Пример</b> (по желанию): после перевода через <code>//</code> пример и его перевод<br><code>gato - кот // El gato duerme. // Кот спит.</code></p>'+
     '<div class="actions"><label class="btn" for="file">Выбрать файл .txt</label><input id="file" type="file" accept=".txt,text/plain" hidden></div>'+
     '<textarea id="paste" rows="8" placeholder="'+esc(L.ph)+'" spellcheck="false" autocapitalize="off" autocorrect="off">'+esc(state.addText)+'</textarea>'+
     '<p class="muted" id="parsed">'+parsedHtml()+'</p>'+
     '<div class="actions"><button class="btn primary wide" style="margin-top:0" id="importBtn" data-act="import"'+(parsed?'':' disabled')+'>Добавить в «'+esc(L.name)+'»</button></div>';
   if(r){
-    h+='<div class="notice">Добавлено слов и фраз: '+r.added+'.'+
+    h+='<div class="notice">Добавлено слов и фраз: '+r.added+'.'+(r.upd?' Примеры добавлены к уже имеющимся: '+r.upd+' (прогресс не изменился).':'')+
       (r.dups?' Уже были в списке: '+r.dups+'.':'')+(r.bad?' Пропущено строк без перевода: '+r.bad+'.':'')+
       (r.added?' Новые слова будут появляться по '+state.meta.limit+' в день.':'')+
       ' <button class="ghost" data-act="tab" data-v="learn">Начать учить</button></div>';
@@ -718,7 +731,7 @@ function act(a,t){
     case "dir":state.meta.dir=v;touch(1);state.cur=null;state.revealed=false;render(true);break;
     case "import":doImport();break;
     case "exp-txt":
-      deliver("slova-"+state.lang+".txt","text/plain",cardsOf().sort(function(a,b){return a.c-b.c;}).map(function(c){return c.w+" - "+c.t;}).join("\n"));break;
+      deliver("slova-"+state.lang+".txt","text/plain",cardsOf().sort(function(a,b){return a.c-b.c;}).map(function(c){return c.w+" - "+c.t+(c.x?" // "+c.x+(c.xt?" // "+c.xt:""):"");}).join("\n"));break;
     case "wipe":state.confirmWipe=true;render(true);break;
     case "wipe-no":state.confirmWipe=false;render(true);break;
     case "wipe-yes":
